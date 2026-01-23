@@ -1,0 +1,56 @@
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  Build_Edge:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all tags for version check
+      - uses: actions/setup-python@v4.7.1
+        with:
+          python-version: '3.10'
+      - name: build
+        run: |
+          python -m pip install -r requirements.txt
+          python run.py
+      - name: Get current date and version
+        id: date_version
+        run: |
+          echo "date=$(Get-Date -Format 'yyyy-MM-dd')" >> $GITHUB_OUTPUT
+          echo "version=$(Get-Content build/release/Edge/version.txt)" >> $GITHUB_OUTPUT
+      - name: Package Release
+        run: |
+          Compress-Archive -Path build/release/Edge -DestinationPath build/Edge_Portable_Win64_${{ steps.date_version.outputs.version }}.zip
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.date_version.outputs.version }}
+          name: Edge Portable v${{ steps.date_version.outputs.version }} (${{ steps.date_version.outputs.date }})
+          body: |
+            Microsoft Edge 便携版自动构建
+            
+            构建时间: ${{ steps.date_version.outputs.date }}
+            Edge 版本: ${{ steps.date_version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            build/Edge_Portable_Win64_${{ steps.date_version.outputs.version }}.zip
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_NAME }}
+          path: build/release/*
+          retention-days: 15
