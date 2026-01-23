@@ -131,8 +131,12 @@ def main():
         last_version = get_last_build_version()
 
     if last_version == latest_version:
-        print(f"Version {latest_version} is already built. Skipping.")
-        sys.exit(0)
+        # Check for force build environment variable
+        if os.environ.get('FORCE_BUILD', 'false').lower() == 'true':
+            print(f"Version {latest_version} is already built, but FORCE_BUILD is set. Proceeding...")
+        else:
+            print(f"Version {latest_version} is already built. Skipping.")
+            sys.exit(0)
     
     print("New version detected. Starting build process...")
 
