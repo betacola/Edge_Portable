@@ -266,12 +266,16 @@ def main():
                 sys.exit(1)
         
         if os.path.exists(temp_chrome_exe):
-            print(f"Injecting {version_dll} into {temp_chrome_exe}...")
-            # Use absolute paths for safety
+            # Calculate relative path for portability
+            # version.dll is in Edge/, msedge.exe is in Edge/{version}/
+            # So relative path should be ..\version.dll
+            relative_dll_path = os.path.relpath(version_dll, os.path.dirname(temp_chrome_exe))
+            print(f"Injecting {relative_dll_path} into {temp_chrome_exe}...")
+            
             # Use subprocess instead of os.system to avoid shell syntax issues and capture output
             cmd = [
                 os.path.abspath(setdll_tool),
-                f'/d:{os.path.abspath(version_dll)}',
+                f'/d:{relative_dll_path}',
                 os.path.abspath(temp_chrome_exe)
             ]
             injection_success = False
