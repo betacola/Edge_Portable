@@ -2,9 +2,9 @@
 
 全自动无人管理项目，每周定时拉取最新Chrome离线包，并封装为便携版。
 
-采用GitHub Actions自动编译发布，下载地址：[https://github.com/Piracola/Chrome-Portable/releases/latest](https://github.com/Piracola/Chrome-Portable/releases/latest)
+采用GitHub Actions自动编译发布，下载地址：[https://github.com/betacola/edge-Portable/releases/latest](https://github.com/betacola/edge-Portable/releases/latest)
 
-[![build status](https://github.com/Piracola/Chrome-Portable/actions/workflows/build.yml/badge.svg)](https://github.com/Piracola/Chrome-Portable/actions/workflows/build.yml)
+[![build status](https://github.com/betacola/edge-Portable/actions/workflows/build.yml/badge.svg)](https://github.com/betacola/edge-Portable/actions/workflows/build.yml)
 
 # 安装
 

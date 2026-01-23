@@ -284,7 +284,9 @@ def main():
             ]
             injection_success = False
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                # Run from the directory of chrome.exe so that relative path ..\version.dll works for setdll's check
+                target_dir = os.path.dirname(temp_chrome_exe)
+                result = subprocess.run(cmd, capture_output=True, text=True, cwd=target_dir)
                 if result.returncode == 0:
                     print("Injection successful.")
                     print(result.stdout)
