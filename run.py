@@ -253,21 +253,60 @@ def main():
         
     # 9. Inject DLL
     msedge_exe = os.path.join(dst_version_path, 'msedge.exe')
+    temp_chrome_exe = os.path.join(dst_version_path, 'chrome.exe')
     version_dll = os.path.join(build_root, 'version.dll')
     
-    if os.path.exists(setdll_tool) and os.path.exists(msedge_exe) and os.path.exists(version_dll):
-        print(f"Injecting {version_dll} into {msedge_exe}...")
-        # Use absolute paths for safety
-        cmd = f'"{os.path.abspath(setdll_tool)}" /d:"{os.path.abspath(version_dll)}" "{os.path.abspath(msedge_exe)}"'
-        if os.system(cmd) == 0:
-            print("Injection successful.")
+    if os.path.exists(setdll_tool) and os.path.exists(version_dll):
+        if os.path.exists(msedge_exe):
+            print(f"Renaming {msedge_exe} to {temp_chrome_exe} for injection compatibility...")
+            try:
+                os.rename(msedge_exe, temp_chrome_exe)
+            except OSError as e:
+                print(f"Failed to rename msedge.exe: {e}")
+                sys.exit(1)
+        
+        if os.path.exists(temp_chrome_exe):
+            print(f"Injecting {version_dll} into {temp_chrome_exe}...")
+            # Use absolute paths for safety
+            # Use subprocess instead of os.system to avoid shell syntax issues and capture output
+            cmd = [
+                os.path.abspath(setdll_tool),
+                f'/d:{os.path.abspath(version_dll)}',
+                os.path.abspath(temp_chrome_exe)
+            ]
+            injection_success = False
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    print("Injection successful.")
+                    print(result.stdout)
+                    injection_success = True
+                else:
+                    print("Injection failed.")
+                    print(f"STDOUT: {result.stdout}")
+                    print(f"STDERR: {result.stderr}")
+            except Exception as e:
+                print(f"Injection execution error: {e}")
+
+            # Restore filename
+            print(f"Renaming {temp_chrome_exe} back to {msedge_exe}...")
+            try:
+                if os.path.exists(temp_chrome_exe):
+                    os.rename(temp_chrome_exe, msedge_exe)
+            except OSError as e:
+                print(f"Failed to restore msedge.exe name: {e}")
+                sys.exit(1)
+            
+            if not injection_success:
+                sys.exit(1)
         else:
-            print("Injection failed.")
+            print("Target executable not found (rename failed?).")
             sys.exit(1)
+
         # Remove setdll tool after use
         os.remove(setdll_tool)
     else:
-        print("Skipping injection (missing files).")
+        print("Skipping injection (missing setdll or version.dll or msedge.exe).")
         
     # 10. Finalize
     # Move to build/release/Edge
