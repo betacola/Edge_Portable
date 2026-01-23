@@ -243,12 +243,14 @@ def main():
 
     # chrome++.ini
     # Prioritize local chrome++.ini if exists
+    # Move to version directory to be safe with version.dll
+    dest_ini_path = os.path.join(dst_version_path, 'chrome++.ini')
     if os.path.exists('chrome++.ini'):
         print("Using local chrome++.ini")
-        shutil.copy('chrome++.ini', os.path.join(build_root, 'chrome++.ini'))
+        shutil.copy('chrome++.ini', dest_ini_path)
     elif os.path.exists(os.path.join(setdll_extract_dir, 'chrome++.ini')):
         print("Using default chrome++.ini from setdll")
-        shutil.copy(os.path.join(setdll_extract_dir, 'chrome++.ini'), os.path.join(build_root, 'chrome++.ini'))
+        shutil.copy(os.path.join(setdll_extract_dir, 'chrome++.ini'), dest_ini_path)
         
     # setdll-x64.exe (for injection)
     setdll_tool = os.path.join(build_root, 'setdll-x64.exe')
@@ -270,21 +272,73 @@ def main():
                 sys.exit(1)
         
         if os.path.exists(temp_chrome_exe):
-            # Calculate relative path for portability
-            # version.dll is in Edge/, msedge.exe is in Edge/{version}/
-            # So relative path should be ..\version.dll
-            relative_dll_path = os.path.relpath(version_dll, os.path.dirname(temp_chrome_exe))
-            print(f"Injecting {relative_dll_path} into {temp_chrome_exe}...")
+            # We must copy version.dll to the same directory as chrome.exe temporarily for setdll to verify it
+            # But we inject just "version.dll" so it loads from adjacent folder at runtime?
+            # No, if we inject "version.dll", Windows only looks in AppDir (Edge/144.x.x.x/).
+            # If version.dll is in Edge/, and msedge.exe is in Edge/144.x.x.x/, "version.dll" won't be found unless we use "..\version.dll".
+            # BUT, the error says "D:\a\Edge_Portable\...\version.dll not found", which means previous relative injection failed or was resolved to absolute at build time?
+            # Actually setdll tool might resolve path to absolute before writing to PE.
+            # To fix this, we should NOT let setdll resolve the path.
+            # However, setdll usually takes the path you give it.
+            
+            # Strategy: 
+            # 1. Copy version.dll to the version directory (next to chrome.exe).
+            # 2. Inject simply "version.dll".
+            # 3. This ensures portability because it's just a filename.
+            # 4. BUT our folder structure puts version.dll in root (Edge/) and exe in subfolder.
+            #    If we want to keep that structure, we must inject "..\version.dll".
+            #    If "..\version.dll" is causing absolute path resolution issues on the build machine, 
+            #    it might be because setdll implementation does GetFullPathName.
+            
+            # Let's try the strategy used by the batch file: `setdll-%arch% /d:version-%arch%.dll %target_exe%`
+            # The batch file expects version.dll to be next to target_exe or in a path that doesn't need resolution?
+            # The batch file is usually run by user AFTER extraction.
+            # We are pre-patching.
+            
+            # If we inject "version.dll", we MUST put version.dll next to msedge.exe.
+            # Let's change the file structure to put version.dll inside the version folder?
+            # No, standard portable structure usually keeps loader DLLs in root.
+            
+            # Let's stick to "..\version.dll" but ensure we don't resolve it.
+            # If setdll resolves it, we are stuck.
+            # The error "找不到 D:\a\..." suggests the path inside the PE header IS absolute.
+            # This confirms setdll converts relative path to absolute before writing.
+            
+            # Workaround:
+            # We need to manually patch the Import Table or use a tool that doesn't resolve paths.
+            # OR, simpler:
+            # Move version.dll INTO the version directory (Edge/144.0.xxxx.xx/).
+            # Then inject "version.dll".
+            # Then move it back? No, then runtime won't find it if it's moved back.
+            # So, permanently move version.dll to be alongside msedge.exe.
+            # BUT, if we have multiple versions or updates, users might expect it in root.
+            # Let's check chrome++.ini location. It's usually in root.
+            # version.dll usually looks for chrome++.ini in its own directory or parent.
+            
+            # Let's try: Place version.dll NEXT TO msedge.exe.
+            # This is the most robust way to avoid path issues.
+            
+            print("Moving version.dll to version directory for robust injection...")
+            dest_version_dll = os.path.join(dst_version_path, 'version.dll')
+            shutil.copy(version_dll, dest_version_dll)
+            # Remove the one in root if we decided to move it completely, 
+            # but maybe keep it there if other things need it? 
+            # Let's just have it in the version folder for now.
+            
+            # Also need to make sure chrome++.ini is accessible. 
+            # Usually version.dll handles finding ini in parent dir.
+            
+            print(f"Injecting version.dll into {temp_chrome_exe}...")
             
             # Use subprocess instead of os.system to avoid shell syntax issues and capture output
             cmd = [
                 os.path.abspath(setdll_tool),
-                f'/d:{relative_dll_path}',
+                '/d:version.dll',
                 os.path.abspath(temp_chrome_exe)
             ]
             injection_success = False
             try:
-                # Run from the directory of chrome.exe so that relative path ..\version.dll works for setdll's check
+                # Run from the directory of chrome.exe so "version.dll" is found
                 target_dir = os.path.dirname(temp_chrome_exe)
                 result = subprocess.run(cmd, capture_output=True, text=True, cwd=target_dir)
                 if result.returncode == 0:
@@ -297,6 +351,12 @@ def main():
                     print(f"STDERR: {result.stderr}")
             except Exception as e:
                 print(f"Injection execution error: {e}")
+            
+            # Clean up root version.dll if we moved it?
+            # Let's remove the root version.dll to avoid confusion, 
+            # as the active one is now inside the version folder.
+            if os.path.exists(version_dll):
+                os.remove(version_dll)
 
             # Restore filename
             print(f"Renaming {temp_chrome_exe} back to {msedge_exe}...")
