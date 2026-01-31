@@ -12,7 +12,7 @@ USER_AGENT = "Microsoft Edge Update/1.3.183.29;winhttp"
 EDGE_UPDATE_API = "https://msedge.api.cdp.microsoft.com/api/v2/contents/Browser/namespaces/Default/names/{0}/versions/latest?action=select"
 EDGE_DOWNLOAD_API = "https://msedge.api.cdp.microsoft.com/api/v1.1/internal/contents/Browser/namespaces/Default/names/{0}/versions/{1}/files?action=GenerateDownloadInfo"
 SEVEN_ZIP_URL = 'https://www.7-zip.org/a/7zr.exe'
-SETDLL_URL = 'https://github.com/Bush2021/chrome_plus/releases/latest/download/setdll.7z'
+CHROME_PLUS_DIR = "chrome++"
 LAST_VERSION_FILE = "last_build_version.txt"
 
 def get_latest_version():
@@ -226,13 +226,11 @@ def main():
     dst_version_path = os.path.join(build_root, version_dir_name)
     shutil.move(src_version_path, dst_version_path)
     
-    # 8. Download and Setup Setdll
-    print("Setting up setdll...")
-    setdll_archive = os.path.join(work_dir, 'setdll.7z')
-    download_file(SETDLL_URL, setdll_archive)
-    
-    setdll_extract_dir = os.path.join(work_dir, 'setdll_out')
-    extract_with_7z(setdll_archive, setdll_extract_dir)
+    # 8. Setup Setdll and version.dll from local chrome++ directory
+    print(f"Setting up setdll from local directory: {CHROME_PLUS_DIR}...")
+    if not os.path.exists(CHROME_PLUS_DIR):
+        print(f"Error: Local directory '{CHROME_PLUS_DIR}' not found.")
+        sys.exit(1)
     
     # Determine architecture from APP_ID
     arch_suffix = "x64"
@@ -243,39 +241,38 @@ def main():
     
     print(f"Detected target architecture: {arch_suffix}")
 
-    # Prepare files to copy
-    # version.dll (rename from version-{arch}.dll)
-    version_dll_src = os.path.join(setdll_extract_dir, f'version-{arch_suffix}.dll')
-    if not os.path.exists(version_dll_src):
-        # Fallback to x64 if specific one not found (unlikely)
-        version_dll_src = os.path.join(setdll_extract_dir, 'version-x64.dll')
-        
+    # 8.1 version.dll (rename from version-{arch}.dll)
+    version_dll_name = f'version-{arch_suffix}.dll'
+    version_dll_src = os.path.join(CHROME_PLUS_DIR, version_dll_name)
+    
     if os.path.exists(version_dll_src):
         shutil.copy(version_dll_src, os.path.join(build_root, 'version.dll'))
     else:
-        print(f"Error: version-{arch_suffix}.dll not found in setdll archive.")
+        print(f"Error: Required file '{version_dll_name}' not found in {CHROME_PLUS_DIR}.")
         sys.exit(1)
 
-    # chrome++.ini
-    # Prioritize local chrome++.ini if exists
-    # Move to version directory to be alongside version.dll
+    # 8.2 chrome++.ini
+    # Prioritize chrome++ directory, then project root
     dest_ini_path = os.path.join(dst_version_path, 'chrome++.ini')
-    if os.path.exists('chrome++.ini'):
-        print("Using local chrome++.ini")
-        shutil.copy('chrome++.ini', dest_ini_path)
-    elif os.path.exists(os.path.join(setdll_extract_dir, 'chrome++.ini')):
-        print("Using default chrome++.ini from setdll")
-        shutil.copy(os.path.join(setdll_extract_dir, 'chrome++.ini'), dest_ini_path)
+    ini_src = os.path.join(CHROME_PLUS_DIR, 'chrome++.ini')
+    if not os.path.exists(ini_src):
+        ini_src = 'chrome++.ini' # Fallback to root
         
-    # setdll tool (matching architecture)
+    if os.path.exists(ini_src):
+        print(f"Using chrome++.ini from {ini_src}")
+        shutil.copy(ini_src, dest_ini_path)
+    else:
+        print(f"Warning: chrome++.ini not found in {CHROME_PLUS_DIR} or root.")
+        
+    # 8.3 setdll tool (matching architecture)
     setdll_tool_name = f'setdll-{arch_suffix}.exe'
-    setdll_tool_src = os.path.join(setdll_extract_dir, setdll_tool_name)
+    setdll_tool_src = os.path.join(CHROME_PLUS_DIR, setdll_tool_name)
     setdll_tool = os.path.join(build_root, setdll_tool_name)
     
     if os.path.exists(setdll_tool_src):
         shutil.copy(setdll_tool_src, setdll_tool)
     else:
-        print(f"Error: {setdll_tool_name} not found in setdll archive.")
+        print(f"Error: Required tool '{setdll_tool_name}' not found in {CHROME_PLUS_DIR}.")
         sys.exit(1)
         
     # 9. Inject DLL
