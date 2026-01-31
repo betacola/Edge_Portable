@@ -1,12 +1,12 @@
 @echo off
 
 set target_exe=msedge.exe
-set /p target_exe=Enter program to inject (default msedge.exe):
 
-if "%target_exe%"=="" set target_exe=msedge.exe
-
-echo %target_exe%|findstr /i ".exe" >nul
-if %errorlevel% neq 0 set target_exe=%target_exe%.exe
+if not exist %target_exe% (
+    echo Error: %target_exe% not found in current directory.
+    pause
+    exit /b 1
+)
 
 :platform
 if "%PROCESSOR_ARCHITECTURE%"=="x86" setdll-x86 /t:%target_exe% 2>nul
@@ -20,7 +20,7 @@ goto eof
 
 :x86
 @echo ***********************************************************************
-@echo *          The program will automatically inject 32-bit browsers      *
+@echo *          The program will automatically inject 32-bit Edge          *
 @echo *                     Press any key to continue                       *
 @echo ***********************************************************************
 echo+
@@ -30,7 +30,7 @@ goto runing
 :x64
 echo+
 @echo ***********************************************************************
-@echo *          The program will automatically inject 64-bit browsers      *
+@echo *          The program will automatically inject 64-bit Edge          *
 @echo *                     Press any key to continue                       *
 @echo ***********************************************************************
 echo+
@@ -40,14 +40,21 @@ goto runing
 :arm64
 echo+
 @echo ***********************************************************************
-@echo *          The program will automatically inject ARM64 browsers      *
+@echo *          The program will automatically inject ARM64 Edge           *
 @echo *                     Press any key to continue                       *
 @echo ***********************************************************************
 echo+
 @pause .
 
 :runing
-setdll-%arch% /d:version-%arch%.dll %target_exe% 2>nul
+:: Try both version.dll (packaged) and version-%arch%.dll (original)
+if exist version.dll (
+    set dll_name=version.dll
+) else (
+    set dll_name=version-%arch%.dll
+)
+
+setdll-%arch% /d:%dll_name% %target_exe% 2>nul
 if "%errorlevel%"=="0" echo Done &goto eof
 echo Fail
 
