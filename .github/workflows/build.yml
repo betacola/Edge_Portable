@@ -46,6 +46,7 @@ jobs:
           body: |
             自动构建的 Microsoft Edge 便携版
             解压后即可使用，数据文件存储在同级文件夹下
+            官方发行说明 / Official Release Notes: [microsoft-edge-relnote-stable-channel](https://learn.microsoft.com/zh-cn/deployedge/microsoft-edge-release-notes)
             
             构建时间: ${{ steps.date_version.outputs.date }}
             Edge 版本: ${{ steps.date_version.outputs.version }}
