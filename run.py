@@ -6,14 +6,12 @@ import subprocess
 import sys
 from datetime import datetime
 
-# Configuration
 APP_ID = "msedge-stable-win-x64"
 USER_AGENT = "Microsoft Edge Update/1.3.183.29;winhttp"
 EDGE_UPDATE_API = "https://msedge.api.cdp.microsoft.com/api/v2/contents/Browser/namespaces/Default/names/{0}/versions/latest?action=select"
 EDGE_DOWNLOAD_API = "https://msedge.api.cdp.microsoft.com/api/v1.1/internal/contents/Browser/namespaces/Default/names/{0}/versions/{1}/files?action=GenerateDownloadInfo"
 SEVEN_ZIP_URL = 'https://www.7-zip.org/a/7zr.exe'
 CHROME_PLUS_DIR = "chrome++"
-LAST_VERSION_FILE = "last_build_version.txt"
 
 def get_latest_version():
     """Fetch the latest Edge version from Microsoft API."""
@@ -39,7 +37,6 @@ def get_latest_version():
     return None
 
 def get_download_info(version):
-    """Get download URL for the specific version."""
     headers = {"User-Agent": USER_AGENT}
     try:
         response = requests.post(
@@ -48,7 +45,6 @@ def get_download_info(version):
         if response.status_code == 200:
             items = response.json()
             if items:
-                # Sort by size (descending) to get the full installer (usually the largest file)
                 items.sort(key=lambda x: x.get("SizeInBytes", 0), reverse=True)
                 item = items[0]
                 return {
@@ -61,7 +57,6 @@ def get_download_info(version):
     return None
 
 def download_file(url, path):
-    """Download a file with progress indication."""
     if os.path.exists(path):
         print(f"File {path} already exists. Skipping download.")
         return
@@ -81,7 +76,6 @@ def download_file(url, path):
         sys.exit(1)
 
 def extract_with_7z(archive, output_dir=None, seven_zip_path='7zr.exe'):
-    """Extract archive using 7zr.exe."""
     cmd = [os.path.abspath(seven_zip_path), 'x', archive, '-y']
     if output_dir:
         cmd.append(f'-o{output_dir}')
@@ -93,54 +87,18 @@ def extract_with_7z(archive, output_dir=None, seven_zip_path='7zr.exe'):
         return False
     return True
 
-def get_last_build_version():
-    """Get the version of the last build from git tags."""
-    try:
-        result = subprocess.run(
-            ["git", "tag", "--sort=-creatordate"], capture_output=True, text=True
-        )
-        tags = result.stdout.strip().split("\n")
-        for tag in tags:
-            if tag.startswith("v"):
-                # Tag format is v120.0.2210.91 or v2026-01-23_120.0.2210.91
-                # The original script used date as tag, let's see.
-                # Actually, let's look at the old download.py logic again.
-                return tag.lstrip("v")
-    except Exception:
-        pass
-    return "0.0.0.0"
-
 def main():
     requests.packages.urllib3.disable_warnings()
     
-    # 1. Check for updates
-    print("Checking for latest Edge version...")
+    print("Starting Edge build process...")
+    
     latest_version = get_latest_version()
     if not latest_version:
         print("Failed to get latest version from Microsoft API.")
         sys.exit(1)
     
-    print(f"Latest Edge version found: {latest_version}")
-    
-    # Use git tags or local file to check version
-    last_version = "0.0.0.0"
-    if os.path.exists(LAST_VERSION_FILE):
-        with open(LAST_VERSION_FILE, 'r') as f:
-            last_version = f.read().strip()
-    else:
-        last_version = get_last_build_version()
+    print(f"Building Edge version: {latest_version}")
 
-    if last_version == latest_version:
-        # Check for force build environment variable
-        if os.environ.get('FORCE_BUILD', 'false').lower() == 'true':
-            print(f"Version {latest_version} is already built, but FORCE_BUILD is set. Proceeding...")
-        else:
-            print(f"Version {latest_version} is already built. Skipping.")
-            sys.exit(0)
-    
-    print("New version detected. Starting build process...")
-
-    # 2. Prepare environment
     if not os.path.exists('7zr.exe'):
         download_file(SEVEN_ZIP_URL, '7zr.exe')
     
@@ -149,7 +107,6 @@ def main():
         shutil.rmtree(work_dir)
     os.makedirs(work_dir, exist_ok=True)
     
-    # 3. Download Edge Installer
     info = get_download_info(latest_version)
     if not info:
         print("Failed to get download info.")
@@ -335,17 +292,11 @@ def main():
     
     shutil.move(build_root, final_edge_path)
     
-    # Save version info
     with open(os.path.join(final_edge_path, 'version.txt'), 'w') as f:
         f.write(latest_version)
         
-    with open(LAST_VERSION_FILE, 'w') as f:
-        f.write(latest_version)
-        
-    # Cleanup
     shutil.rmtree(work_dir, ignore_errors=True)
     
-    # Output for GitHub Actions
     build_name = f'Edge_Portable_Win64_{latest_version}_{datetime.now().strftime("%Y-%m-%d")}'
     env_file = os.getenv('GITHUB_ENV')
     if env_file:
