@@ -294,6 +294,10 @@ def main():
     
     with open(os.path.join(final_edge_path, 'version.txt'), 'w') as f:
         f.write(latest_version)
+    
+    if os.path.exists('开始.bat'):
+        shutil.copy('开始.bat', os.path.join(release_dir, '开始.bat'))
+        print('开始.bat copied successfully!')
         
     shutil.rmtree(work_dir, ignore_errors=True)
     
