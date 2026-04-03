@@ -6,6 +6,9 @@ import subprocess
 import sys
 from datetime import datetime
 
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 APP_ID = "msedge-stable-win-x64"
 USER_AGENT = "Microsoft Edge Update/1.3.183.29;winhttp"
 EDGE_UPDATE_API = "https://msedge.api.cdp.microsoft.com/api/v2/contents/Browser/namespaces/Default/names/{0}/versions/latest?action=select"
