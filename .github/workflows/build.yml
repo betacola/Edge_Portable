@@ -45,7 +45,9 @@ jobs:
           $version = Get-Content build/release/Edge/version.txt
           echo "EDGE_VERSION=$version" >> $env:GITHUB_ENV
           $archiveName = "Edge_Portable_Win64_${{ env.BUILD_DATE }}.7z"
-          7z a -t7z -mx=9 "build/assets/$archiveName" build/release/*
+          Push-Location build/release
+          7z a -t7z -mx=9 "../../assets/$archiveName" *
+          Pop-Location
 
       - name: Upload Artifacts
         if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
