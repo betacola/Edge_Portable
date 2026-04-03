@@ -127,6 +127,13 @@ def update_release_title_and_tag(release_id, new_title, new_tag, old_tag=None):
         if old_tag and old_tag != new_tag:
             delete_git_tag(old_tag)
         
+        env_file = os.getenv('GITHUB_ENV')
+        if env_file:
+            with open(env_file, 'a') as f:
+                f.write(f"RELEASE_TAG={new_tag}\n")
+                f.write(f"RELEASE_TITLE={new_title}\n")
+            print(f"[INFO] Updated environment variables: RELEASE_TAG={new_tag}, RELEASE_TITLE={new_title}")
+        
         return True
     else:
         print(f"[ERROR] Failed to update release title/tag: {resp.status_code} {resp.text}")
