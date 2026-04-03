@@ -31,7 +31,7 @@ def get_version_from_microsoft_api():
             if content_id:
                 return content_id.get("Version")
     except Exception as e:
-        print(f"Microsoft API error: {e}")
+        print(f"[ERROR] Microsoft API error: {e}")
     return None
 
 def get_version_from_edge_installer():
@@ -45,22 +45,22 @@ def get_version_from_edge_installer():
             if match:
                 return match.group(1)
     except Exception as e:
-        print(f"Edge installer repo error: {e}")
+        print(f"[ERROR] Edge installer repo error: {e}")
     return None
 
 def get_upstream_version():
     version = get_version_from_microsoft_api()
     if version:
-        print(f"Version from Microsoft API: {version}")
+        print(f"[INFO] Version from Microsoft API: {version}")
         return version
     
-    print("Microsoft API failed, trying edge_installer repo...")
+    print("[WARN] Microsoft API failed, trying edge_installer repo...")
     version = get_version_from_edge_installer()
     if version:
-        print(f"Version from edge_installer repo: {version}")
+        print(f"[INFO] Version from edge_installer repo: {version}")
         return version
     
-    print("All version sources failed!")
+    print("[ERROR] All version sources failed!")
     return None
 
 def extract_version_from_body(body):
@@ -78,7 +78,7 @@ def extract_version_from_body(body):
 def get_latest_release_info():
     repo = os.getenv('GITHUB_REPOSITORY')
     if not repo:
-        print("GITHUB_REPOSITORY not set, assuming local test or first run")
+        print("[INFO] GITHUB_REPOSITORY not set, assuming local test or first run")
         return None
     
     token = os.getenv('GITHUB_TOKEN')
@@ -90,12 +90,14 @@ def get_latest_release_info():
     try:
         resp = requests.get(url, headers=headers)
         if resp.status_code == 404:
-            print("No releases found.")
+            print("[INFO] No releases found.")
             return None
         resp.raise_for_status()
         data = resp.json()
         body = data.get('body', '')
         tag_name = data.get('tag_name', '')
+        
+        print(f"[DEBUG] Release body preview (first 500 chars):\n{body[:500]}...")
         
         version = extract_version_from_body(body)
         
@@ -103,7 +105,10 @@ def get_latest_release_info():
             tag_match = re.search(r'v?(\d+\.\d+\.\d+\.\d+)', tag_name)
             if tag_match:
                 version = tag_match.group(1)
-                print(f"Version extracted from tag: {version}")
+                print(f"[INFO] Version extracted from tag: {version}")
+        
+        if not version:
+            print("[WARN] Failed to extract version from release body")
         
         return {
             'id': data.get('id'),
@@ -111,7 +116,7 @@ def get_latest_release_info():
             'version': version,
         }
     except Exception as e:
-        print(f"Error getting latest release: {e}")
+        print(f"[ERROR] Failed to get latest release: {e}")
         return None
 
 def get_major_version(version):
@@ -125,16 +130,20 @@ def get_major_version(version):
 def compare_versions(v1, v2):
     if not v1 or not v2:
         return 0
-    parts1 = [int(x) for x in v1.split('.')]
-    parts2 = [int(x) for x in v2.split('.')]
-    for i in range(max(len(parts1), len(parts2))):
-        p1 = parts1[i] if i < len(parts1) else 0
-        p2 = parts2[i] if i < len(parts2) else 0
-        if p1 > p2:
-            return 1
-        elif p1 < p2:
-            return -1
-    return 0
+    try:
+        parts1 = [int(x) for x in v1.split('.')]
+        parts2 = [int(x) for x in v2.split('.')]
+        for i in range(max(len(parts1), len(parts2))):
+            p1 = parts1[i] if i < len(parts1) else 0
+            p2 = parts2[i] if i < len(parts2) else 0
+            if p1 > p2:
+                return 1
+            elif p1 < p2:
+                return -1
+        return 0
+    except ValueError as e:
+        print(f"[WARN] Version comparison error: {e}")
+        return 0
 
 def is_version_upgrade(new_version, old_version):
     return compare_versions(new_version, old_version) > 0
@@ -157,14 +166,16 @@ def is_minor_update(new_version, old_version):
     return False
 
 def main():
-    print("Checking for updates...")
+    print("=" * 60)
+    print("[INFO] Starting version check...")
+    print("=" * 60)
     
     upstream_version = get_upstream_version()
     
-    print(f"Upstream Version: {upstream_version}")
+    print(f"[INFO] Upstream Version: {upstream_version}")
     
     if not upstream_version:
-        print("Failed to get upstream version. Forcing build to be safe.")
+        print("[ERROR] Failed to get upstream version. Forcing build to be safe.")
         env_file = os.getenv('GITHUB_ENV')
         if env_file:
             with open(env_file, 'a') as f:
@@ -177,50 +188,51 @@ def main():
         latest_version = release_info.get('version')
         release_id = release_info.get('id')
         release_tag = release_info.get('tag_name')
-        print(f"Latest Release ID: {release_id}")
-        print(f"Latest Release Tag: {release_tag}")
-        print(f"Latest Release Version: {latest_version}")
+        print(f"[INFO] Latest Release ID: {release_id}")
+        print(f"[INFO] Latest Release Tag: {release_tag}")
+        print(f"[INFO] Latest Release Version: {latest_version}")
     else:
         latest_version = None
         release_id = None
         release_tag = None
     
-    update_needed = upstream_version != latest_version
+    update_needed = False
     
-    print(f"Version comparison:")
-    print(f"  Upstream:  {upstream_version}")
-    print(f"  Current:   {latest_version}")
-    print(f"  Different: {update_needed}")
-    
-    if not latest_version:
-        print("WARNING: Failed to extract version from release. Treating as update needed.")
-        update_needed = True
-    elif update_needed:
-        if not is_version_upgrade(upstream_version, latest_version):
-            print(f"WARNING: Upstream version ({upstream_version}) is NOT newer than current ({latest_version}).")
-            print("This appears to be a version rollback. Skipping update.")
-            update_needed = False
+    if latest_version:
+        if upstream_version != latest_version:
+            if is_version_upgrade(upstream_version, latest_version):
+                update_needed = True
+                print(f"[INFO] Version upgrade detected: {latest_version} -> {upstream_version}")
+            else:
+                print(f"[WARN] Upstream version ({upstream_version}) is NOT newer than current ({latest_version}).")
+                print("[WARN] This appears to be a version rollback. Skipping update.")
         else:
-            print(f"Upstream version is newer: {latest_version} -> {upstream_version}")
-
-    print(f"Update needed: {update_needed}")
+            print("[INFO] Version is up to date. No update needed.")
+    else:
+        update_needed = True
+        print("[WARN] No previous version found. Will create/update release.")
+    
+    print("-" * 60)
+    print(f"[RESULT] Update needed: {update_needed}")
+    print("-" * 60)
     
     create_new_release = False
     minor_update = False
     if not release_id:
         create_new_release = True
-        print("No existing release found. Will create new release.")
+        print("[INFO] No existing release found. Will create new release.")
     elif update_needed and is_major_version_update(upstream_version, latest_version):
         create_new_release = True
-        print(f"Major version update detected: {latest_version} -> {upstream_version}. Will create new release.")
+        print(f"[INFO] Major version update detected: {latest_version} -> {upstream_version}. Will create new release.")
     else:
-        print("Minor version update. Will update existing release.")
+        print("[INFO] Will update existing release.")
         if update_needed and is_minor_update(upstream_version, latest_version):
             minor_update = True
-            print(f"Minor version update detected: {latest_version} -> {upstream_version}. Will update release title.")
+            print(f"[INFO] Minor version update detected: {latest_version} -> {upstream_version}. Will update release title.")
     
-    print(f"Create new release: {create_new_release}")
-    print(f"Minor update: {minor_update}")
+    print(f"[RESULT] Create new release: {create_new_release}")
+    print(f"[RESULT] Minor update: {minor_update}")
+    print("=" * 60)
     
     env_file = os.getenv('GITHUB_ENV')
     if env_file:
@@ -233,6 +245,7 @@ def main():
                 f.write(f"RELEASE_ID={release_id}\n")
             if release_tag:
                 f.write(f"RELEASE_TAG={release_tag}\n")
+        print("[INFO] Environment variables written successfully.")
 
 if __name__ == '__main__':
     main()

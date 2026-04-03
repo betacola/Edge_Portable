@@ -32,6 +32,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python check_versions.py
 
+      - name: Debug Environment Variables
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        run: |
+          Write-Host "========== Environment Variables =========="
+          Write-Host "UPDATE_NEEDED: $env:UPDATE_NEEDED"
+          Write-Host "CREATE_NEW_RELEASE: $env:CREATE_NEW_RELEASE"
+          Write-Host "MINOR_UPDATE: $env:MINOR_UPDATE"
+          Write-Host "UPSTREAM_VERSION: $env:UPSTREAM_VERSION"
+          Write-Host "RELEASE_ID: $env:RELEASE_ID"
+          Write-Host "RELEASE_TAG: $env:RELEASE_TAG"
+          Write-Host "==========================================="
+
       - name: Set Build Date
         if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
         run: |
@@ -41,13 +53,26 @@ jobs:
       - name: Build Edge
         if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
         run: |
+          Write-Host "[INFO] Starting Edge build..."
           python run.py
           $version = Get-Content build/release/Edge/version.txt
           echo "EDGE_VERSION=$version" >> $env:GITHUB_ENV
+          Write-Host "[INFO] Edge version: $version"
           $archiveName = "Edge_Portable_Win64_${{ env.BUILD_DATE }}.7z"
           Push-Location build/release
           7z a -t7z -mx=9 "../assets/$archiveName" *
           Pop-Location
+          Write-Host "[INFO] Edge build completed: $archiveName"
+
+      - name: Debug Build Results
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        run: |
+          Write-Host "========== Build Results =========="
+          Write-Host "EDGE_VERSION: $env:EDGE_VERSION"
+          Write-Host "BUILD_DATE: $env:BUILD_DATE"
+          Write-Host "==================================="
+          Write-Host "Assets in build/assets:"
+          Get-ChildItem build/assets -Name
 
       - name: Upload Artifacts
         if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
@@ -61,7 +86,12 @@ jobs:
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python update_release.py
+        run: |
+          Write-Host "========== Updating Existing Release =========="
+          Write-Host "Release ID: $env:RELEASE_ID"
+          Write-Host "Release Tag: $env:RELEASE_TAG"
+          Write-Host "================================================"
+          python update_release.py
 
       - name: Upload Assets to Existing Release
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
