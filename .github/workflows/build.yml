@@ -112,8 +112,6 @@ jobs:
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: ${{ env.RELEASE_TITLE || env.RELEASE_TAG }}
           files: build/assets/*.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
