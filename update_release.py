@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 
 def get_github_api_headers():
@@ -9,6 +10,23 @@ def get_github_api_headers():
     if token:
         headers['Authorization'] = f'token {token}'
     return headers
+
+def compare_versions(v1, v2):
+    if not v1 or not v2:
+        return 0
+    parts1 = [int(x) for x in v1.split('.')]
+    parts2 = [int(x) for x in v2.split('.')]
+    for i in range(max(len(parts1), len(parts2))):
+        p1 = parts1[i] if i < len(parts1) else 0
+        p2 = parts2[i] if i < len(parts2) else 0
+        if p1 > p2:
+            return 1
+        elif p1 < p2:
+            return -1
+    return 0
+
+def is_version_upgrade(new_version, old_version):
+    return compare_versions(new_version, old_version) > 0
 
 def delete_release_asset(release_id, asset_id):
     repo = os.getenv('GITHUB_REPOSITORY')
@@ -88,24 +106,45 @@ def generate_release_body(version, build_date):
     ]
     return "\n".join(lines)
 
+def extract_version_from_tag(tag_name):
+    if not tag_name:
+        return None
+    match = re.search(r'v?(\d+\.\d+\.\d+\.\d+)', tag_name)
+    if match:
+        return match.group(1)
+    return None
+
 def main():
     release_id = os.getenv('RELEASE_ID')
     minor_update = os.getenv('MINOR_UPDATE', 'false').lower() == 'true'
     version = os.getenv('EDGE_VERSION', '')
     upstream_version = os.getenv('UPSTREAM_VERSION', '')
     build_date = os.getenv('BUILD_DATE', '')
+    release_tag = os.getenv('RELEASE_TAG', '')
     
     if not release_id:
         print("No existing release ID found. This will be handled by the create release step.")
         return
+    
+    final_version = version if version else upstream_version
+    current_version = extract_version_from_tag(release_tag)
+    
+    print(f"Version check:")
+    print(f"  New version:    {final_version}")
+    print(f"  Current version: {current_version}")
+    
+    if current_version and final_version:
+        if not is_version_upgrade(final_version, current_version):
+            print(f"ERROR: New version ({final_version}) is NOT newer than current ({current_version}).")
+            print("Aborting update to prevent version rollback.")
+            return
+        print(f"Version upgrade confirmed: {current_version} -> {final_version}")
     
     print(f"Updating release {release_id}")
     print(f"Minor update: {minor_update}")
     
     print("Deleting old assets...")
     delete_assets_by_pattern(release_id, 'edge')
-    
-    final_version = version if version else upstream_version
     
     new_body = generate_release_body(final_version, build_date)
     update_release_body(release_id, new_body)

@@ -10,8 +10,9 @@ if sys.stdout.encoding != 'utf-8':
 APP_ID = "msedge-stable-win-x64"
 USER_AGENT = "Microsoft Edge Update/1.3.183.29;winhttp"
 EDGE_UPDATE_API = "https://msedge.api.cdp.microsoft.com/api/v2/contents/Browser/namespaces/Default/names/{0}/versions/latest?action=select"
+EDGE_INSTALLER_REPO = "Bush2021/edge_installer"
 
-def get_upstream_version():
+def get_version_from_microsoft_api():
     headers = {"User-Agent": USER_AGENT}
     data = {
         "targetingAttributes": {
@@ -23,14 +24,43 @@ def get_upstream_version():
     try:
         requests.packages.urllib3.disable_warnings()
         response = requests.post(
-            EDGE_UPDATE_API.format(APP_ID), json=data, headers=headers, verify=False
+            EDGE_UPDATE_API.format(APP_ID), json=data, headers=headers, verify=False, timeout=30
         )
         if response.status_code == 200:
             content_id = response.json().get("ContentId")
             if content_id:
                 return content_id.get("Version")
     except Exception as e:
-        print(f"Error checking upstream version: {e}")
+        print(f"Microsoft API error: {e}")
+    return None
+
+def get_version_from_edge_installer():
+    url = f"https://api.github.com/repos/{EDGE_INSTALLER_REPO}/releases/latest"
+    try:
+        resp = requests.get(url, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            tag_name = data.get('tag_name', '')
+            match = re.match(r'^(\d+\.\d+\.\d+\.\d+)$', tag_name)
+            if match:
+                return match.group(1)
+    except Exception as e:
+        print(f"Edge installer repo error: {e}")
+    return None
+
+def get_upstream_version():
+    version = get_version_from_microsoft_api()
+    if version:
+        print(f"Version from Microsoft API: {version}")
+        return version
+    
+    print("Microsoft API failed, trying edge_installer repo...")
+    version = get_version_from_edge_installer()
+    if version:
+        print(f"Version from edge_installer repo: {version}")
+        return version
+    
+    print("All version sources failed!")
     return None
 
 def extract_version_from_body(body):
@@ -92,6 +122,23 @@ def get_major_version(version):
         return parts[0]
     return None
 
+def compare_versions(v1, v2):
+    if not v1 or not v2:
+        return 0
+    parts1 = [int(x) for x in v1.split('.')]
+    parts2 = [int(x) for x in v2.split('.')]
+    for i in range(max(len(parts1), len(parts2))):
+        p1 = parts1[i] if i < len(parts1) else 0
+        p2 = parts2[i] if i < len(parts2) else 0
+        if p1 > p2:
+            return 1
+        elif p1 < p2:
+            return -1
+    return 0
+
+def is_version_upgrade(new_version, old_version):
+    return compare_versions(new_version, old_version) > 0
+
 def is_major_version_update(new_version, old_version):
     new_major = get_major_version(new_version)
     old_major = get_major_version(old_version)
@@ -148,6 +195,13 @@ def main():
     if not latest_version:
         print("WARNING: Failed to extract version from release. Treating as update needed.")
         update_needed = True
+    elif update_needed:
+        if not is_version_upgrade(upstream_version, latest_version):
+            print(f"WARNING: Upstream version ({upstream_version}) is NOT newer than current ({latest_version}).")
+            print("This appears to be a version rollback. Skipping update.")
+            update_needed = False
+        else:
+            print(f"Upstream version is newer: {latest_version} -> {upstream_version}")
 
     print(f"Update needed: {update_needed}")
     
