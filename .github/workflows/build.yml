@@ -92,12 +92,25 @@ jobs:
           Write-Host "Release Tag: $env:RELEASE_TAG"
           Write-Host "================================================"
           python update_release.py
+          Write-Host "Extracting edge version for release title..."
+          $edgeVer = $env:EDGE_VERSION
+          if (-not $edgeVer) {
+            $edgeVer = $env:UPSTREAM_VERSION
+          }
+          if ($edgeVer) {
+            $releaseTitle = "Edge Portable v$edgeVer"
+            echo "RELEASE_TITLE=$releaseTitle" >> $env:GITHUB_ENV
+            Write-Host "Set RELEASE_TITLE=$releaseTitle"
+          } else {
+            Write-Host "[WARN] Could not determine edge version for title"
+          }
 
       - name: Upload Assets to Existing Release
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TITLE || env.RELEASE_TAG }}
           files: build/assets/*.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
