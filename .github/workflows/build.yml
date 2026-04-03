@@ -99,8 +99,11 @@ jobs:
           }
           if ($edgeVer) {
             $releaseTitle = "Edge Portable v$edgeVer"
+            $releaseTag = "v$edgeVer"
             echo "RELEASE_TITLE=$releaseTitle" >> $env:GITHUB_ENV
+            echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_ENV
             Write-Host "Set RELEASE_TITLE=$releaseTitle"
+            Write-Host "Set RELEASE_TAG=$releaseTag"
           } else {
             Write-Host "[WARN] Could not determine edge version for title"
           }
