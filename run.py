@@ -16,6 +16,31 @@ EDGE_DOWNLOAD_API = "https://msedge.api.cdp.microsoft.com/api/v1.1/internal/cont
 SEVEN_ZIP_URL = 'https://www.7-zip.org/a/7zr.exe'
 CHROME_PLUS_DIR = "chrome++"
 
+SYSTEM_7Z_PATHS = [
+    r'C:\Program Files\7-Zip\7z.exe',
+    r'C:\Program Files (x86)\7-Zip\7z.exe',
+]
+LOCAL_7ZR = '7zr.exe'
+
+def find_7z_tool():
+    for path in SYSTEM_7Z_PATHS:
+        if os.path.exists(path):
+            print(f"Using system 7-Zip: {path}")
+            return path
+    if os.path.exists(LOCAL_7ZR):
+        print(f"Using local 7zr.exe")
+        return os.path.abspath(LOCAL_7ZR)
+    try:
+        result = subprocess.run(['7z'], capture_output=True, text=True)
+        if result.returncode == 0 or '7-Zip' in result.stderr:
+            print("Using 7z from PATH")
+            return '7z'
+    except Exception:
+        pass
+    print("No 7-Zip found, will download 7zr.exe...")
+    download_file(SEVEN_ZIP_URL, LOCAL_7ZR)
+    return os.path.abspath(LOCAL_7ZR)
+
 def get_latest_version():
     """Fetch the latest Edge version from Microsoft API."""
     headers = {"User-Agent": USER_AGENT}
@@ -78,8 +103,10 @@ def download_file(url, path):
             os.remove(path)
         sys.exit(1)
 
-def extract_with_7z(archive, output_dir=None, seven_zip_path='7zr.exe'):
-    cmd = [os.path.abspath(seven_zip_path), 'x', archive, '-y']
+def extract_with_7z(archive, output_dir=None, seven_zip_path=None):
+    if seven_zip_path is None:
+        seven_zip_path = find_7z_tool()
+    cmd = [seven_zip_path, 'x', archive, '-y']
     if output_dir:
         cmd.append(f'-o{output_dir}')
     
@@ -102,8 +129,7 @@ def main():
     
     print(f"Building Edge version: {latest_version}")
 
-    if not os.path.exists('7zr.exe'):
-        download_file(SEVEN_ZIP_URL, '7zr.exe')
+    seven_zip = find_7z_tool()
     
     work_dir = 'temp_work'
     if os.path.exists(work_dir):
@@ -125,7 +151,7 @@ def main():
     
     # 4. Extract Edge Installer
     # The installer is a 7z SFX or similar.
-    if not extract_with_7z(installer_path, work_dir):
+    if not extract_with_7z(installer_path, work_dir, seven_zip):
         sys.exit(1)
         
     # 5. Extract MSEDGE.7z
@@ -142,7 +168,7 @@ def main():
         sys.exit(1)
         
     # Extract MSEDGE.7z to work_dir
-    if not extract_with_7z(msedge_7z, work_dir):
+    if not extract_with_7z(msedge_7z, work_dir, seven_zip):
         sys.exit(1)
         
     # 6. Locate Version Directory

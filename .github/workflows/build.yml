@@ -44,15 +44,15 @@ jobs:
           python run.py
           $version = Get-Content build/release/Edge/version.txt
           echo "EDGE_VERSION=$version" >> $env:GITHUB_ENV
-          $archiveName = "Edge_Portable_Win64_${{ env.BUILD_DATE }}.zip"
-          Compress-Archive -Path build/release/Edge -DestinationPath "build/assets/$archiveName"
+          $archiveName = "Edge_Portable_Win64_${{ env.BUILD_DATE }}.7z"
+          7z a -t7z -mx=9 "build/assets/$archiveName" build/release/*
 
       - name: Upload Artifacts
         if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Edge-Portable-Builds
-          path: build/assets/*.zip
+          path: build/assets/*.7z
           retention-days: 15
 
       - name: Update Existing Release
@@ -66,7 +66,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          files: build/assets/*.zip
+          files: build/assets/*.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -83,7 +83,7 @@ jobs:
             
             构建时间: ${{ env.BUILD_DATE }}
             Edge 版本: ${{ env.EDGE_VERSION }}
-          files: build/assets/*.zip
+          files: build/assets/*.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
