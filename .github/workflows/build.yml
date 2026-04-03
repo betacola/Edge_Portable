@@ -33,7 +33,7 @@ jobs:
         run: python check_versions.py
 
       - name: Debug Environment Variables
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
         run: |
           Write-Host "========== Environment Variables =========="
           Write-Host "UPDATE_NEEDED: $env:UPDATE_NEEDED"
@@ -65,7 +65,7 @@ jobs:
           Write-Host "[INFO] Edge build completed: $archiveName"
 
       - name: Debug Build Results
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
         run: |
           Write-Host "========== Build Results =========="
           Write-Host "EDGE_VERSION: $env:EDGE_VERSION"
@@ -83,7 +83,7 @@ jobs:
           retention-days: 15
 
       - name: Update Existing Release
-        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -109,7 +109,7 @@ jobs:
           }
 
       - name: Upload Assets to Existing Release
-        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
         uses: softprops/action-gh-release@v1
         with:
           files: build/assets/*.7z
@@ -117,7 +117,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create New Release
-        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'true'
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.EDGE_VERSION }}
@@ -134,7 +134,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete Older Releases
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && env.UPDATE_NEEDED == 'true')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && env.UPDATE_NEEDED == 'true')
         uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
           keep_latest: 10
