@@ -2,6 +2,10 @@ import os
 import re
 import requests
 import subprocess
+import sys
+
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 APP_ID = "msedge-stable-win-x64"
 USER_AGENT = "Microsoft Edge Update/1.3.183.29;winhttp"
@@ -29,6 +33,18 @@ def get_upstream_version():
         print(f"Error checking upstream version: {e}")
     return None
 
+def extract_version_from_body(body):
+    patterns = [
+        r'Edge\s*版本[:：]\s*(\d+\.\d+\.\d+\.\d+)',
+        r'Edge\s*版本[:：]\s*([\d\.]+)',
+        r'Version[:：]\s*(\d+\.\d+\.\d+\.\d+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, body)
+        if match:
+            return match.group(1)
+    return None
+
 def get_latest_release_info():
     repo = os.getenv('GITHUB_REPOSITORY')
     if not repo:
@@ -49,14 +65,19 @@ def get_latest_release_info():
         resp.raise_for_status()
         data = resp.json()
         body = data.get('body', '')
+        tag_name = data.get('tag_name', '')
         
-        version_match = re.search(r'Edge 版本:\s*([\d\.]+)', body)
+        version = extract_version_from_body(body)
         
-        version = version_match.group(1) if version_match else None
+        if not version and tag_name:
+            tag_match = re.search(r'v?(\d+\.\d+\.\d+\.\d+)', tag_name)
+            if tag_match:
+                version = tag_match.group(1)
+                print(f"Version extracted from tag: {version}")
         
         return {
             'id': data.get('id'),
-            'tag_name': data.get('tag_name'),
+            'tag_name': tag_name,
             'version': version,
         }
     except Exception as e:
@@ -119,11 +140,13 @@ def main():
     
     update_needed = upstream_version != latest_version
     
-    if update_needed:
-        print("Version mismatch/update detected.")
-        
+    print(f"Version comparison:")
+    print(f"  Upstream:  {upstream_version}")
+    print(f"  Current:   {latest_version}")
+    print(f"  Different: {update_needed}")
+    
     if not latest_version:
-        print("No previous version info found or failed to parse. Treating as update needed.")
+        print("WARNING: Failed to extract version from release. Treating as update needed.")
         update_needed = True
 
     print(f"Update needed: {update_needed}")
