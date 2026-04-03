@@ -49,16 +49,27 @@ def get_version_from_edge_installer():
     return None
 
 def get_upstream_version():
-    version = get_version_from_microsoft_api()
-    if version:
-        print(f"[INFO] Version from Microsoft API: {version}")
-        return version
+    ms_version = get_version_from_microsoft_api()
+    gh_version = get_version_from_edge_installer()
     
-    print("[WARN] Microsoft API failed, trying edge_installer repo...")
-    version = get_version_from_edge_installer()
-    if version:
-        print(f"[INFO] Version from edge_installer repo: {version}")
-        return version
+    if ms_version:
+        print(f"[INFO] Version from Microsoft API: {ms_version}")
+    if gh_version:
+        print(f"[INFO] Version from edge_installer repo: {gh_version}")
+    
+    if ms_version and gh_version:
+        if compare_versions(gh_version, ms_version) > 0:
+            print(f"[INFO] Using newer version from edge_installer: {gh_version} > {ms_version}")
+            return gh_version
+        else:
+            print(f"[INFO] Using version from Microsoft API: {ms_version}")
+            return ms_version
+    elif gh_version:
+        print("[INFO] Using version from edge_installer repo (Microsoft API unavailable)")
+        return gh_version
+    elif ms_version:
+        print("[INFO] Using version from Microsoft API (edge_installer unavailable)")
+        return ms_version
     
     print("[ERROR] All version sources failed!")
     return None
