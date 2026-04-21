@@ -58,11 +58,13 @@ jobs:
           $version = Get-Content build/release/Edge/version.txt
           echo "EDGE_VERSION=$version" >> $env:GITHUB_ENV
           Write-Host "[INFO] Edge version: $version"
-          $archiveName = "Edge_Portable_Win64_${{ env.BUILD_DATE }}.7z"
+          $archiveName = "Edge_Portable_Win64_${version}_${{ env.BUILD_DATE }}.7z"
           Push-Location build/release
           7z a -t7z -mx=9 "../assets/$archiveName" *
           Pop-Location
-          Write-Host "[INFO] Edge build completed: $archiveName"
+          Write-Host "[INFO] Build archive created: build/assets/$archiveName"
+          Write-Host "[INFO] Archive contents:"
+          Get-ChildItem build/assets -Name
 
       - name: Debug Build Results
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
@@ -92,26 +94,13 @@ jobs:
           Write-Host "Release Tag: $env:RELEASE_TAG"
           Write-Host "================================================"
           python update_release.py
-          Write-Host "Extracting edge version for release title..."
-          $edgeVer = $env:EDGE_VERSION
-          if (-not $edgeVer) {
-            $edgeVer = $env:UPSTREAM_VERSION
-          }
-          if ($edgeVer) {
-            $releaseTitle = "Edge Portable v$edgeVer"
-            $releaseTag = "v$edgeVer"
-            echo "RELEASE_TITLE=$releaseTitle" >> $env:GITHUB_ENV
-            echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_ENV
-            Write-Host "Set RELEASE_TITLE=$releaseTitle"
-            Write-Host "Set RELEASE_TAG=$releaseTag"
-          } else {
-            Write-Host "[WARN] Could not determine edge version for title"
-          }
+          Write-Host "[INFO] Release update completed. Check logs for tag/title updates."
 
       - name: Upload Assets to Existing Release
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: build/assets/*.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -130,14 +119,5 @@ jobs:
             构建时间: ${{ env.BUILD_DATE }}
             Edge 版本: ${{ env.EDGE_VERSION }}
           files: build/assets/*.7z
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Delete Older Releases
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && env.UPDATE_NEEDED == 'true')
-        uses: dev-drprasad/delete-older-releases@v0.3.4
-        with:
-          keep_latest: 10
-          delete_tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
