@@ -10,114 +10,13 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  build_and_release:
-    runs-on: windows-latest
+  portable:
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v4.7.1
-        with:
-          python-version: '3.10'
-          
-      - name: Install dependencies
-        run: |
-          python -m pip install -r requirements.txt
-          New-Item -ItemType Directory -Force -Path build/assets
-
-      - name: Check for updates
-        id: check_updates
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python check_versions.py
-
-      - name: Debug Environment Variables
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
-        run: |
-          Write-Host "========== Environment Variables =========="
-          Write-Host "UPDATE_NEEDED: $env:UPDATE_NEEDED"
-          Write-Host "CREATE_NEW_RELEASE: $env:CREATE_NEW_RELEASE"
-          Write-Host "MINOR_UPDATE: $env:MINOR_UPDATE"
-          Write-Host "UPSTREAM_VERSION: $env:UPSTREAM_VERSION"
-          Write-Host "RELEASE_ID: $env:RELEASE_ID"
-          Write-Host "RELEASE_TAG: $env:RELEASE_TAG"
-          Write-Host "==========================================="
-
-      - name: Set Build Date
-        if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
-        run: |
-          $date = Get-Date -Format 'yyyy-MM-dd'
-          echo "BUILD_DATE=$date" >> $env:GITHUB_ENV
-
-      - name: Build Edge
-        if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
-        run: |
-          Write-Host "[INFO] Starting Edge build..."
-          python run.py
-          $version = Get-Content build/release/Edge/version.txt
-          echo "EDGE_VERSION=$version" >> $env:GITHUB_ENV
-          Write-Host "[INFO] Edge version: $version"
-          $archiveName = "Edge_Portable_Win64_${version}_${{ env.BUILD_DATE }}.7z"
-          Push-Location build/release
-          7z a -t7z -mx=9 "../assets/$archiveName" *
-          Pop-Location
-          Write-Host "[INFO] Build archive created: build/assets/$archiveName"
-          Write-Host "[INFO] Archive contents:"
-          Get-ChildItem build/assets -Name
-
-      - name: Debug Build Results
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push'
-        run: |
-          Write-Host "========== Build Results =========="
-          Write-Host "EDGE_VERSION: $env:EDGE_VERSION"
-          Write-Host "BUILD_DATE: $env:BUILD_DATE"
-          Write-Host "==================================="
-          Write-Host "Assets in build/assets:"
-          Get-ChildItem build/assets -Name
-
-      - name: Upload Artifacts
-        if: github.event_name != 'schedule' || env.UPDATE_NEEDED == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Edge-Portable-Builds
-          path: build/assets/*.7z
-          retention-days: 15
-
-      - name: Update Existing Release
-        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          Write-Host "========== Updating Existing Release =========="
-          Write-Host "Release ID: $env:RELEASE_ID"
-          Write-Host "Release Tag: $env:RELEASE_TAG"
-          Write-Host "================================================"
-          python update_release.py
-          Write-Host "[INFO] Release update completed. Check logs for tag/title updates."
-
-      - name: Upload Assets to Existing Release
-        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'false'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          files: build/assets/*.7z
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create New Release
-        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && env.UPDATE_NEEDED == 'true' && env.CREATE_NEW_RELEASE == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ env.EDGE_VERSION }}
-          name: Edge Portable v${{ env.EDGE_VERSION }}
-          body: |
-            自动构建的 Microsoft Edge 便携版
-            解压后即可使用，数据文件存储在同级文件夹下
-            官方发行说明 / Official Release Notes: [microsoft-edge-relnote-stable-channel](https://learn.microsoft.com/zh-cn/deployedge/microsoft-edge-release-notes)
-            
-            构建时间: ${{ env.BUILD_DATE }}
-            Edge 版本: ${{ env.EDGE_VERSION }}
-          files: build/assets/*.7z
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: Piracola/ChromiumPortable/.github/workflows/portable-browser.yml@v1.1
+    with:
+      builder-repository: Piracola/ChromiumPortable
+      builder-ref: v1.1
+      config: browser.json
+      target: edge_stable
+      artifact-name: Edge-Portable-Build

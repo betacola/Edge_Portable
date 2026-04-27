@@ -24,3 +24,11 @@
 # 卸载
 
 删除 Edge 文件夹，删除快捷方式即可，无残留。**注意提前保存 User Data，避免自己的个人浏览数据清空（可微软账号同步，但不如本地数据全面）。**
+
+# 本地构建
+
+```powershell
+python -m pip install requests
+$env:PYTHONPATH="..\ChromiumPortable"
+python -m portable_builder --config browser.json --target edge_stable --workdir . build
+```

@@ -1,0 +1,30 @@
+{
+  "targets": {
+    "edge_stable": {
+      "name": "Edge",
+      "display_name": "Microsoft Edge",
+      "output_dir": "Edge",
+      "exe_name": "msedge.exe",
+      "architecture": "x64",
+      "provider": {
+        "type": "script",
+        "command": ["python", "scripts/edge_package.py"]
+      },
+      "version_root": "Chrome-bin",
+      "inner_archive": "MSEDGE.7Z",
+      "layout": "move_version_dir",
+      "chrome_plus_dir": "chrome++",
+      "ini_location": "version_dir",
+      "version_dll_location": "version_dir",
+      "start_script": "开始.bat",
+      "archive_name": "Edge_Portable_Win64_{version}_{date}.7z",
+      "release": {
+        "tag": "v{version}",
+        "title": "Edge Portable v{version}",
+        "asset_match": "edge",
+        "version_pattern": "Edge\\s*版本[:：]\\s*(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+        "body": "自动构建的 Microsoft Edge 便携版\n解压后即可使用，数据文件存储在同级文件夹下\n官方发行说明 / Official Release Notes: https://learn.microsoft.com/zh-cn/deployedge/microsoft-edge-release-notes\n\n构建时间: {date}\nEdge 版本: {version}\n"
+      }
+    }
+  }
+}
