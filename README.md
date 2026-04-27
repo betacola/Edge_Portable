@@ -6,6 +6,11 @@
 
 [![build status](https://github.com/betacola/Edge_Portable/actions/workflows/build.yml/badge.svg)](https://github.com/betacola/Edge_Portable/actions/workflows/build.yml)
 
+# 相关项目
+
+- [ChromiumPortable](https://github.com/Piracola/ChromiumPortable)：Chromium 系便携版构建核心，提供可复用的自动构建、打包和发行流程。
+- [Chrome-Portable](https://github.com/Piracola/Chrome-Portable)：同系列 Google Chrome 便携版子项目。
+
 # 安装
 
 **解压 Edge 文件夹，为 msedge.exe 建立桌面快捷方式即可**
