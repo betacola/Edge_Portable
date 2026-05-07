@@ -13,10 +13,10 @@ jobs:
   portable:
     permissions:
       contents: write
-    uses: Piracola/ChromiumPortable/.github/workflows/portable-browser.yml@v1.1
+    uses: Piracola/ChromiumPortable/.github/workflows/portable-browser.yml@main
     with:
       builder-repository: Piracola/ChromiumPortable
-      builder-ref: v1.1
+      builder-ref: main
       config: browser.json
       target: edge_stable
       artifact-name: Edge-Portable-Build
