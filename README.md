@@ -1,34 +1,66 @@
-# 获取
+# Edge 便携版
 
-全自动无人管理项目，每周定时拉取最新 Edge 离线包，并封装为便携版。
+> 全自动构建的 Microsoft Edge 便携版，集成 Chrome++ 增强组件，提供纯净、高效的浏览体验。
 
-采用GitHub Actions自动编译发布，下载地址：[https://github.com/betacola/Edge_Portable/releases/latest](https://github.com/betacola/Edge_Portable/releases/latest)
+[![Build Status](https://github.com/betacola/Edge_Portable/actions/workflows/build.yml/badge.svg)](https://github.com/betacola/Edge_Portable/actions/workflows/build.yml)
 
-[![build status](https://github.com/betacola/Edge_Portable/actions/workflows/build.yml/badge.svg)](https://github.com/betacola/Edge_Portable/actions/workflows/build.yml)
+## 仓库导航
 
-# 相关项目
+- [ChromiumPortable（主仓库）](https://github.com/Piracola/ChromiumPortable)：通用构建核心仓库。
+- [Chrome-Portable](https://github.com/Piracola/Chrome-Portable)：同系列 Google Chrome 便携版项目。
+- [Helium_Portable](https://github.com/Piracola/Helium_Portable)：同系列 Helium 便携版子项目。
 
-- [ChromiumPortable](https://github.com/Piracola/ChromiumPortable)：Chromium 系便携版构建核心，提供可复用的自动构建、打包和发行流程。
-- [Chrome-Portable](https://github.com/Piracola/Chrome-Portable)：同系列 Google Chrome 便携版子项目。
+## 项目简介
 
-# 安装
+本项目全自动构建，每天定时检查 Microsoft 官方是否有最新 Edge 离线安装包更新，集成 Chrome++ 组件并封装为便携版。
 
-**解压 Edge 文件夹，为 msedge.exe 建立桌面快捷方式即可**
+项目预配置了自定义增强功能，具体配置请查看`chrome++.ini`。
 
-# 更新
+目前项目默认同步构建 Stable 版本，如后续扩展其他渠道，将在同一流程内统一维护。
 
-无法自动更新，未来可以建立独立的绿色升级软件，原 Edge 每4周发布一次新版本，定时为每周，会出现最新的版本相同的情况，平时不需要频繁升级。
 
-**保留 Edge 文件夹中的 User Data, 其他文件删除后解压新压缩包即可，单纯的文件替换。**
+## 功能特性
 
-# 卸载
+以下功能均可在`chrome++.ini`中修改：
 
-删除 Edge 文件夹，删除快捷方式即可，无残留。**注意提前保存 User Data，避免自己的个人浏览数据清空（可微软账号同步，但不如本地数据全面）。**
+- 所有用户数据及缓存均存储于程序同级目录的 `Data` 和 `Cache` 文件夹
+- 双击关闭标签页、保留最后一个标签页
+- 支持新建前台标签页打开书签或地址栏内容
+- 更多增强功能请查看`chrome++.ini`
 
-# 本地构建
+## 快速开始
 
-```powershell
-python -m pip install requests
-$env:PYTHONPATH="..\ChromiumPortable"
-python -m portable_builder --config browser.json --target edge_stable --workdir . build
-```
+**安装**
+
+1. 下载：访问 [Releases](https://github.com/betacola/Edge_Portable/releases/latest) 获取最新版本
+2. 解压：将压缩包解压至任意位置
+3. 运行`开始.bat`文件创建快捷方式
+
+**更新**
+
+1. 保留旧版 Edge 文件夹中的 `User Data` 目录。
+2. 删除其余旧文件后，解压新版 Edge 文件夹到同级目录完成覆盖更新。
+
+**卸载**
+
+1. 删除 Edge 文件夹即可完成卸载。
+
+## 致谢
+
+本项目基于以下优秀开源项目构建：
+
+| 项目                                                                     | 说明        |
+| ---------------------------------------------------------------------- | --------- |
+| [Bush2021/chrome\_plus](https://github.com/Bush2021/chrome_plus)       | 提供核心便携化组件 |
+| [rnamoy/chrome\_installer](https://github.com/rnamoy/chrome_installer) | 提供安装包解析   |
+
+## 许可证
+
+本项目源码遵循 MIT 许可证。
+
+- Microsoft Edge 浏览器版权归 Microsoft 所有
+- Chrome++ 组件版权归原作者所有
+
+***
+
+本项目采用 GitHub Actions 自动检查更新，版本号与 Edge 官方 Stable 分支保持一致。查看 [Releases](https://github.com/betacola/Edge_Portable/releases) 获取历史版本。
