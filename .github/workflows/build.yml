@@ -2,6 +2,11 @@ name: build
 
 on:
   workflow_dispatch:
+    inputs:
+      builder_ref:
+        description: ChromiumPortable ref to use.
+        required: false
+        default: main
   push:
     branches: [ main ]
   pull_request:
@@ -11,12 +16,15 @@ on:
 
 jobs:
   portable:
+    concurrency:
+      group: edge-portable-build
+      cancel-in-progress: false
     permissions:
       contents: write
     uses: Piracola/ChromiumPortable/.github/workflows/portable-browser.yml@main
     with:
       builder-repository: Piracola/ChromiumPortable
-      builder-ref: main
+      builder-ref: ${{ github.event.inputs.builder_ref || 'main' }}
       config: browser.json
       target: edge_stable
       artifact-name: Edge-Portable-Build
